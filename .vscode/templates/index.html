@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IntelliFleet — Multi-Robot Coordination System</title>
+  <meta name="description"
+    content="IntelliFleet: AI-powered multi-robot warehouse simulation with dynamic robot count, global speed control, and dual task modes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+  <!-- ── Startup Overlay ──────────────────────────────────────── -->
+  <div id="overlay">
+    <div class="overlay-logo">IntelliFleet</div>
+    <div class="overlay-sub">AI Multi-Robot Coordination System</div>
+    <div class="overlay-hint">Grid &amp; robots already placed — configure &amp; click below to begin</div>
+    <button class="overlay-btn" id="launch-btn">INITIALISE SYSTEM</button>
+  </div>
+
+  <!-- ── Tooltip ──────────────────────────────────────────────── -->
+  <div id="tooltip"></div>
+
+  <!-- ── Warning Banner ───────────────────────────────────────── -->
+  <div id="capacity-warning" class="hidden">
+    ⚠ Grid can only fit <span id="cap-max">0</span> robots — placed <span id="cap-placed">0</span> of <span
+      id="cap-req">0</span> requested.
+  </div>
+
+  <!-- ── Target Banner (shown in target mode) ─────────────────── -->
+  <div id="target-banner" class="hidden">
+    🎯 TARGET MODE — Click any empty grid cell to set the target.
+    Robots: <span id="target-reached-count">0</span> / <span id="target-total-count">0</span> arrived.
+  </div>
+
+  <!-- ── Main App ─────────────────────────────────────────────── -->
+  <div id="app">
+
+    <!-- Top Bar -->
+    <div id="topbar">
+      <div class="logo">Intel<span>li</span>Fleet</div>
+      <div class="top-badge">v3.0 · WAREHOUSE SIM</div>
+      <div id="step-display">STEP: 0000</div>
+
+      <div class="spacer"></div>
+
+      <!-- View mode toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-sim" onclick="setMode('sim')">SIM</button>
+        <button class="mode-btn" id="mode-heat" onclick="setMode('heat')">HEAT</button>
+      </div>
+
+      <!-- ── ROBOTS number input ────────────────────────────────── -->
+      <div class="config-group" title="Number of robots to deploy">
+        <label for="cfg-robots">ROBOTS</label>
+        <input type="number" id="cfg-robots" min="1" max="50" value="4" class="robot-count-input"
+          oninput="onRobotCountInput(this.value)" onblur="applyRobotCount()"
+          onkeydown="if(event.key==='Enter') applyRobotCount()">
+      </div>
+
+      <!-- ── SPAWN interval ─────────────────────────────────────── -->
+      <div class="config-group">
+        <label>SPAWN</label>
+        <input type="range" id="cfg-spawn" min="4" max="20" value="8"
+          oninput="document.getElementById('cfg-spawn-val').textContent=this.value">
+        <span class="config-val" id="cfg-spawn-val">8</span>
+      </div>
+
+      <!-- ── GLOBAL SPEED slider ────────────────────────────────── -->
+      <div class="config-group" title="All robots share this speed">
+        <label>SPEED</label>
+        <input type="range" id="cfg-speed" min="1" max="10" value="5" oninput="setSpeed(this.value)">
+        <span class="config-val" id="cfg-speed-val">5×</span>
+      </div>
+
+      <!-- ── TASK MODE selector ─────────────────────────────────── -->
+      <div class="config-group task-mode-group" title="Task mode for all robots">
+        <label>MODE</label>
+        <div class="task-mode-toggle">
+          <button class="task-btn active" id="task-btn-warehouse" onclick="setTaskMode('warehouse')">WH</button>
+          <button class="task-btn" id="task-btn-random" onclick="setTaskMode('random')">RND</button>
+          <button class="task-btn" id="task-btn-target" onclick="setTaskMode('target')">TGT</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <button class="btn btn-amber" id="btn-pause" onclick="togglePause()">PAUSE</button>
+        <button class="btn btn-cyan" onclick="resetSim()">RESET</button>
+        <button class="btn btn-green" id="btn-add-task" onclick="addTask()" disabled>+ TASK</button>
+      </div>
+    </div>
+
+    <!-- Simulation Canvas -->
+    <div id="sim-area">
+      <canvas id="sim-canvas"></canvas>
+      <div id="canvas-label">GRID 10×10 · CLICK CELL TO ADD OBSTACLE / SET TARGET</div>
+      <div id="hint">CLICK: obstacle / target &nbsp;|&nbsp; HOVER: inspect</div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+
+      <!-- KPIs -->
+      <div class="section">
+        <div class="section-title">System KPIs</div>
+        <div class="kpi-grid">
+          <div class="kpi-card" id="kpi-tasks">
+            <div class="kpi-label">Tasks Done</div>
+            <div class="kpi-value green" id="kv-tasks">0</div>
+            <div class="bar-track">
+              <div class="bar-fill green" id="kb-tasks" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="kpi-card" id="kpi-pending">
+            <div class="kpi-label">In Queue</div>
+            <div class="kpi-value cyan" id="kv-pending">0</div>
+            <div class="bar-track">
+              <div class="bar-fill cyan" id="kb-pending" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="kpi-card" id="kpi-conflicts">
+            <div class="kpi-label">Conflicts ✓</div>
+            <div class="kpi-value" id="kv-conflicts">0</div>
+            <div class="bar-track">
+              <div class="bar-fill" id="kb-conflicts" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="kpi-card" id="kpi-eff">
+            <div class="kpi-label">Efficiency</div>
+            <div class="kpi-value cyan" id="kv-eff">0.00</div>
+            <div class="bar-track">
+              <div class="bar-fill cyan" id="kb-eff" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="kpi-card" id="kpi-util">
+            <div class="kpi-label">Utilisation</div>
+            <div class="kpi-value" id="kv-util">0<span class="kpi-unit">%</span></div>
+            <div class="bar-track">
+              <div class="bar-fill" id="kb-util" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="kpi-card" id="kpi-dist">
+            <div class="kpi-label">Total Dist</div>
+            <div class="kpi-value cyan" id="kv-dist">0</div>
+            <div class="bar-track">
+              <div class="bar-fill cyan" id="kb-dist" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="kpi-card" id="kpi-avgtime" style="grid-column:1/-1">
+            <div class="kpi-label">Avg Task Time</div>
+            <div class="kpi-value" id="kv-avgtime">0<span class="kpi-unit">steps</span></div>
+            <div class="bar-track">
+              <div class="bar-fill" id="kb-avgtime" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Performance Chart -->
+      <div class="section">
+        <div class="section-title">Live Performance</div>
+        <canvas id="perf-chart" height="110"></canvas>
+      </div>
+
+      <!-- Robot Fleet -->
+      <div class="section">
+        <div class="section-title">Fleet Status</div>
+        <div id="robot-list"></div>
+      </div>
+
+      <!-- Legend -->
+      <div class="section">
+        <div class="section-title">Map Legend</div>
+        <div class="legend-grid">
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#22c55e"></div> Pickup
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#3b82f6"></div> Drop-off
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#f59e0b"></div> Charger
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#1e2d3d"></div> Obstacle
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="border-radius:50%;background:#06b6d4"></div> Robot
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:rgba(6,182,212,0.3)"></div> Path
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch target-swatch" style="background:#c026d3"></div> Target
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="section">
+        <div class="section-title">Activity Log</div>
+        <div id="log-list"></div>
+      </div>
+
+    </div><!-- /sidebar -->
+  </div><!-- /app -->
+  <script src="{{ url_for('static', filename='simulation.js') }}"></script>
+</body>
+
+</html>

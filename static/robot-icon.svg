@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="botGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Glow -->
+  <circle cx="32" cy="32" r="28" fill="url(#botGlow)"/>
+  <!-- Body -->
+  <rect x="16" y="22" width="32" height="26" rx="4" fill="#0d1117" stroke="#06b6d4" stroke-width="1.5"/>
+  <!-- Head -->
+  <rect x="22" y="12" width="20" height="14" rx="3" fill="#0d1117" stroke="#06b6d4" stroke-width="1.5"/>
+  <!-- Eyes -->
+  <circle cx="27" cy="19" r="3" fill="#06b6d4" opacity="0.9"/>
+  <circle cx="37" cy="19" r="3" fill="#06b6d4" opacity="0.9"/>
+  <!-- Antenna -->
+  <line x1="32" y1="12" x2="32" y2="7" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="32" cy="6" r="2" fill="#f59e0b"/>
+  <!-- Chest panel -->
+  <rect x="22" y="28" width="20" height="8" rx="2" fill="#141b24" stroke="#1e2d3d" stroke-width="1"/>
+  <rect x="24" y="30" width="6" height="4" rx="1" fill="#22c55e" opacity="0.7"/>
+  <rect x="32" y="30" width="8" height="4" rx="1" fill="#f59e0b" opacity="0.5"/>
+  <!-- Wheels / feet -->
+  <rect x="18" y="46" width="10" height="6" rx="3" fill="#1e2d3d" stroke="#06b6d4" stroke-width="1"/>
+  <rect x="36" y="46" width="10" height="6" rx="3" fill="#1e2d3d" stroke="#06b6d4" stroke-width="1"/>
+  <!-- Arms -->
+  <rect x="8" y="24" width="8" height="4" rx="2" fill="#0d1117" stroke="#06b6d4" stroke-width="1"/>
+  <rect x="48" y="24" width="8" height="4" rx="2" fill="#0d1117" stroke="#06b6d4" stroke-width="1"/>
+</svg>
